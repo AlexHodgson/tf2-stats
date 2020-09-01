@@ -43,7 +43,7 @@ def call_progress_plot():
         loadedPlayers[idAsInt] = player
         
     else:
-        print("Player Info For " + idAsString + " Already Downloaded")
+        print("Player Info For " + loadedPlayers[idAsInt].playerName + " (" + idAsString + ") Already Downloaded")
         player = loadedPlayers[idAsInt]
         
     #call the function from Player object

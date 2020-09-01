@@ -168,13 +168,19 @@ class Player:
         #Download logs for officials
         for match in officialLogIDs.keys():
             officialFullLogs[match] = []
-            for log in officialLogIDs[match]:
-                fullLog = get_full_log(log)
+            for logID in officialLogIDs[match]:
+                
+                #Check if we already have the log file
+                if logID in self.downloadedLogs.keys():
+                    fullLog = self.downloadedLogs[logID]
+                else:
+                    fullLog = get_full_log(logID)
+                    
                 #Could add a warning value if log is missing
                 if fullLog:
+                    self.downloadedLogs[logID] = fullLog
                     officialFullLogs[match].append(fullLog)
-                        
-        #print(officialFullLogs)
+
         return officialFullLogs   
         
         
