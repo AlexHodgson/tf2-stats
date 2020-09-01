@@ -4,7 +4,7 @@ Created on Sat Aug 22 11:23:11 2020
 
 Interacts with ETF2L and logs.tf APIs to get player data and store it in object
 
-@author: Alex
+@author: Alex Hodgson
 """
 
 import json
@@ -17,6 +17,8 @@ from datetime import datetime
 import warnings
 #import threading
 import time
+
+from log_processer import gameImpact
 
 #logs.tf docs at http://logs.tf/about
 logs_url_base = "http://logs.tf/api/v1/log"
@@ -42,14 +44,20 @@ class Player:
         self.playerID = playerID
         self.playerInfo = self.__get_player_info()
         self.playerMatches = self.__get_match_history()
-        self.transferHistory = self.__get_match_history()
-        self.tierHistory = np.transpose(np.array([[match['division']['tier'] for match in self.playerMatches if match['competition']['category'] == "6v6 Season"], [match['time']for match in self.playerMatches if match['competition']['category'] == "6v6 Season"]]))
+        self.transferHistory = self.__get_transfer_history()
+        self.tierHistory = np.transpose(np.array([[ self.playerMatches[match]['id'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"],[ self.playerMatches[match]['division']['tier'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"], [self.playerMatches[match]['time']for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"]]))
         
         #ETF2L Name
         self.playerName = self.playerInfo['name']
+        self.steamID = self.playerInfo['steam']['id']
         self.steamID64 = self.playerInfo['steam']['id64']
+        self.steamID3 = "[" + self.playerInfo['steam']['id3'] + "]"
         #Stores logs.tf info for every match on a certain map
         self.mapLogInfo = {}
+        #Log files already downloaded
+        self.downloadedLogs ={}
+        
+        print("Player data downloaded for: " + self.playerName)
         
     
     
@@ -68,9 +76,12 @@ class Player:
             return None
         
     def __get_match_history(self):
-        '''Returns all matches a player has been in'''
+        '''
+        Returns all matches a player has been in
+        Dictionary with match ids as keys
+        '''
         
-        matches = []
+        matches = {}
         nextPage = True
         
         #Where to find the data
@@ -88,7 +99,9 @@ class Player:
             
             #Only add if match has a time
             jsonResponse = json.loads(response.content.decode('utf-8'))
-            matches.extend([match for match in jsonResponse['results'] if match['time'] is not None])
+            for match in jsonResponse['results']:
+                if match['time'] is not None:
+                    matches[match['id']] = match
             
             
             if 'next_page_url' in jsonResponse['page'].keys():
@@ -114,38 +127,54 @@ class Player:
         
     def find_official_logs(self,matches):
         '''
-        Returns logs.tf IDs for a player's officials
+        matches : dict
+        Match data with match id as key
+        
+        Returns logs.tf files for a player's officials
         May get warm up games as well, but that's more good
         data so I'm cool with that
+        
+        Returns logs in a dictionary with match id as key
         '''
         
-        officialLogIDs = []
-        officialFullLogs = []
+        officialLogIDs = {}
+        officialFullLogs = {}
         
         #Get info on logs played on the same map as the official
-        for match in matches:
+        for matchID in matches.keys():
+            #matchID = match['id']
+            officialLogIDs[matchID] = []
             #Skip if no map or time data
-            if 'maps' not in match.keys() or 'time' not in match.keys():
+            if 'maps' not in matches[matchID].keys() or 'time' not in matches[matchID].keys():
                 continue
-            officialMaps = match['maps']
+            officialMaps = matches[matchID]['maps']
             for officialMap in officialMaps:
                 #Pull from logs.tf if we don't already have data
                 if officialMap not in self.mapLogInfo.keys():
                     self.mapLogInfo[officialMap] = self.get_logs_info(officialMap)
-                    
-                #Then check for logs uploaded within 24 hours of game
+                
+                #Skip if no logs are found
+                if not self.mapLogInfo[officialMap]:
+                    continue
+                #Then check for logs uploaded within 24 hours after game
                 #Could use numpy arrays to find min value?
                 #This is inefficient
-                for logInfo in [log for log in self.mapLogInfo[officialMap] if log['date'] - match['time'] > 0]: 
-                    if 0 < logInfo['date'] - match['time'] < 86400:
-                        officialLogIDs.append(logInfo['id'])       
+                possibleLogs = [log for log in self.mapLogInfo[officialMap] if log['date'] - matches[matchID]['time'] > 0]
+                
+                for logInfo in possibleLogs: 
+                    if 0 < logInfo['date'] - matches[matchID]['time'] < 86400:
+                        officialLogIDs[matchID].append(logInfo['id'])       
                         
         #Download logs for officials
-        for log in officialLogIDs:
-            fullLog = get_full_log(log)
-            if fullLog:
-                officialFullLogs.append(fullLog)
+        for match in officialLogIDs.keys():
+            officialFullLogs[match] = []
+            for log in officialLogIDs[match]:
+                fullLog = get_full_log(log)
+                #Could add a warning value if log is missing
+                if fullLog:
+                    officialFullLogs[match].append(fullLog)
                         
+        #print(officialFullLogs)
         return officialFullLogs   
         
         
@@ -190,24 +219,53 @@ class Player:
     def get_6s_matches(self):
         '''
         Selects matches played as part of a 6v6 season
-
+        
+        Takes and returns a dict of matches with match ids as keys
         '''
         
-        return [match for match in self.playerMatches if match['competition']['category'] == "6v6 Season"]
+        matches = {}
+        
+        for matchID in self.playerMatches.keys():
+            if self.playerMatches[matchID]['competition']['category'] == "6v6 Season":
+                matches[matchID] = self.playerMatches[matchID]
 
+        return matches
    
     def plot_div_progress(self):
         '''
         Plot player progress, from div 6 to prem
         Might move this outside of class
         '''
- 
+        
+        #Get score to use as size of plot point
+        playerImpactScore = []
+        for matchID in self.tierHistory[:,0]:
+            #find_official_logs requires a dictionary, so can pass dict of length 1
+            matchLogs = self.find_official_logs({matchID : self.playerMatches[matchID]})
+            #print(matchLogs)
+            playerImpactScore.append(gameImpact(self,matchLogs[matchID]))
+           
+        #This is just dpm at the moment
+        playerImpactScore = normalize_rows(np.array(playerImpactScore)) * 100
+        
+        #Mark where matches had no logs with X marker
+        # playerImpactMarkers = np.copy(playerImpactScore)
+        # playerImpactMarkers = np.where(playerImpactMarkers == 0, "X", playerImpactMarkers)
+        # playerImpactMarkers = np.where(playerImpactMarkers != "X", "o", playerImpactMarkers)
+        
+        
+        #Give size to markers for matches without logs
+        avgImpact = np.mean(playerImpactScore)
+        #playerImpactScore = np.where(playerImpactScore==0, avgImpact, playerImpactScore)
+        
         #Convert from unix time to matplotlib date
-        dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory[:,1]])
+        dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory[:,2]])
         
         plt.title(self.playerName + " ETF2L Division Progress")
         plt.xlabel = "Date"
-        plt.plot_date(dates,self.tierHistory[:,0], ms=3)
+        #plt.plot_date(dates,self.tierHistory[:,1], ms=3, alpha=0.6)
+        plt.scatter(dates[playerImpactScore > 0],self.tierHistory[:,1][playerImpactScore > 0], s=playerImpactScore[playerImpactScore > 0], alpha = 0.6, marker='o')
+        plt.scatter(dates[playerImpactScore == 0 ],self.tierHistory[:,1][playerImpactScore == 0], s=avgImpact/2, alpha = 0.6, marker='x',c="Red")
         ax = plt.gca()
         ax.set_xlabel("Match Date")
         ax.set_ylabel("Tier")
@@ -241,10 +299,12 @@ def get_full_log(logID):
         print("Log not found, logID: " + str(logID))
         return None
      
-  
+def normalize_rows(x: np.ndarray):
+
+    return x/np.mean(x)  
 
 ##Some test cases
-#testPlayer = Player(70219)
+#testPlayer = Player(65834)
 #print(testPlayer.playerName)
 #playerMatches = testPlayer.playerMatches
 #playerLogs = testPlayer.find_official_logs(testPlayer.get_6s_matches())

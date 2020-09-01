@@ -11,6 +11,7 @@ For calculating performance ratings from logs
 from tf2_classes import GameClass, GameTeam
 from statistics import mean, mode
 
+
 def mainClass(steamID, log):
     '''
     
@@ -72,6 +73,7 @@ def gameImpact(player, fullLog):
     Damage per minute for player, placeholder for full performance evaluation
 
     '''
+
     
     steamID = player.steamID
     matchStats = {'mainClass' : [], 'dpm' : [], 'kad' : [], 'bigPicks' : [], 'airshots' : [], 'caps' : [], 'pct_hr' : []}
@@ -84,47 +86,72 @@ def gameImpact(player, fullLog):
     #Percentage of heals recieved
     for log in fullLog:
         
+        #Older logs use steamID3
+        if steamID not in log['players'].keys():
+            steamID = player.steamID3
+
         #Check which team the player was on
         if log['players'][steamID]['team'] == 'Red':
             playerTeam = GameTeam.RED
         elif log['players'][steamID]['team'] == 'Blue':
             playerTeam = GameTeam.BLU
         
-        #Get some provided stats
+        #Get some provided stats, for some reason ka/d is a string
         matchStats['mainClass'].append(mainClass(steamID, log))
         matchStats['dpm'].append(log['players'][steamID]['dapm'])
-        matchStats['kad'].append(log['players'][steamID]['kapd'])
+        matchStats['kad'].append(float(log['players'][steamID]['kapd']))
         matchStats['caps'].append(log['players'][steamID]['cpc'])
         
         #Airshots
         if 'as' in log['players'][steamID].keys():
             matchStats['airshots'].append(log['players'][steamID]['as'])
         
-        #Important kills
+        #Important kills, check if player has any kills at all first
         bigPicks = 0
-        if 'medic' in log['classKills'][steamID].keys():
-            bigPicks += log['classKills'][steamID]['medic']
-        if 'demoman' in log['classKills'][steamID].keys():
-            bigPicks += log['classKills'][steamID]['medic']
+        if steamID in log['classkills'].keys():
+            if 'medic' in log['classkills'][steamID].keys():
+                bigPicks += log['classkills'][steamID]['medic']
+            if 'demoman' in log['classkills'][steamID].keys():
+                bigPicks += log['classkills'][steamID]['demoman']
             
         matchStats['bigPicks'].append(bigPicks)
         
         
         #Get percentage of heals recieved
-        for medic in log['healspread']:
-            if steamID in medic.keys():
+        for medicID in log['healspread'].keys():
+            if steamID in log['healspread'][medicID].keys():
                 totalHeals = 0
-                for healsRec in medic.values():
+                for healsRec in log['healspread'][medicID].values():
                     totalHeals += healsRec 
-                matchStats['pct_hr'].append((medic[steamID] / totalHeals) * 100)
+                matchStats['pct_hr'].append((log['healspread'][medicID][steamID] / totalHeals) * 100)
     
     #Add up or average for the whole game
     #Will extend the class choice if different classes were played on each map
     matchStats['mainClass'] = mode(['mainClass'])
-    matchStats['dpm'] = mean(matchStats['dpm'])
-    matchStats['kad'] = mean(matchStats['kad'])
-    matchStats['caps'] = mean(matchStats['caps'])
-    matchStats['bigPicks'] = mean(matchStats['bigPicks'])
+    
+    #Check if any damage was found, then average over maps
+    if len(matchStats['dpm']) == 0:
+        matchStats['dpm'] = 0
+    else:
+        matchStats['dpm'] = mean(matchStats['dpm'])
+        
+    #Check if any kills or assists were found, then average over maps
+    if len(matchStats['kad']) == 0:
+        matchStats['kad'] = 0
+    else:
+        matchStats['kad'] = mean(matchStats['kad'])
+        
+        #Check if any caps were found, then average over maps
+    if len(matchStats['caps']) == 0:
+        matchStats['caps'] = 0
+    else:
+        matchStats['caps'] = mean(matchStats['caps'])
+        
+    #Check if any big picks were found, then average over maps
+    if len(matchStats['bigPicks']) == 0:
+        matchStats['bigPicks'] = 0
+    else:
+        matchStats['bigPicks'] = mean(matchStats['bigPicks'])
     
     #Check if airshot stats were recorded
     if len(matchStats['airshots']) > 0:
@@ -132,9 +159,9 @@ def gameImpact(player, fullLog):
     else:
         matchStats['airshots'] = None
     
-    #For now only return dpm for testing
-    print(matchStats['dpm'])
-    return matchStats['dpm']
+    #For now only return dpm^4 for testing
+    #print(matchStats['dpm'])
+    return matchStats['dpm']**4
     
 #testPlayer = Player(70219)
     
