@@ -9,27 +9,10 @@ tkinter GUI to interact with the Player class and show progress graph
 
 import tkinter
 from api_interface import Player
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 loadedPlayers = {}
-
-
-
-#Window for inputting player ID
-master = tkinter.Tk()
-
-topFrame = tkinter.Frame(master)
-topFrame.pack(side= tkinter.TOP)
-
-bottomFrame = tkinter.Frame(master)
-bottomFrame.pack(side= tkinter.BOTTOM)
-
-idLabel = tkinter.Label(topFrame, text="ETF2L ID")
-idLabel.pack( side = tkinter.LEFT)
-
-e = tkinter.Entry(topFrame, width=25)
-e.pack(side = tkinter.RIGHT)
-
-e.focus_set()
 
 #Show graph of player progress when button is clicked
 def call_progress_plot():
@@ -50,9 +33,33 @@ def call_progress_plot():
     player.plot_div_progress()
     
 
+#Window for inputting player ID
+master = tkinter.Tk()
+master.title("ETF2L Progress Tracker")
+
+canvas = tkinter.Canvas(master, width=250, height=100)  # define the size
+
+
+topFrame = tkinter.Frame(master)
+topFrame.pack(side= tkinter.TOP)
+
+bottomFrame = tkinter.Frame(master)
+bottomFrame.pack(side= tkinter.BOTTOM)
+
+idLabel = tkinter.Label(topFrame, text="ETF2L ID")
+idLabel.pack( side = tkinter.LEFT)
+
+e = tkinter.Entry(topFrame, width=25)
+e.pack(side = tkinter.RIGHT)
+
+canvas.pack()
+
+e.focus_set()
+
 buttonPlot = tkinter.Button(bottomFrame, text="Plot Player Progress", width=15, command=call_progress_plot)
 buttonPlot.pack()
 
 master.mainloop()
+
 
         

@@ -10,6 +10,7 @@ For calculating performance ratings from logs
 #from api_interface import Player
 from tf2_classes import GameClass, GameTeam
 from statistics import mean, mode
+import math
 
 
 def mainClass(steamID, log):
@@ -159,9 +160,15 @@ def gameImpact(player, fullLog):
     else:
         matchStats['airshots'] = None
     
+    #Check if heal recieved stats were recorded
+    if len(matchStats['pct_hr']) > 0:
+        matchStats['pct_hr'] = mean(matchStats['pct_hr'])
+    else:
+        matchStats['pct_hr'] = 100
+    
     #For now only return dpm^4 for testing
     #print(matchStats['dpm'])
-    return matchStats['dpm']**4
+    return (matchStats['dpm']/matchStats['pct_hr'])**2
     
 #testPlayer = Player(70219)
     

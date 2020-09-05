@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.dates
 from datetime import datetime
-import warnings
+#import warnings
 #import threading
 import time
 
@@ -72,7 +72,8 @@ class Player:
         if response.status_code == 200:
             return json.loads(response.content.decode('utf-8'))['player']
         else:
-            warnings.warn("Unable to retrieve player data, possibly invalid ID or issues with ETF2L API")
+            #warnings.warn("Unable to retrieve player data, possibly invalid ID or issues with ETF2L API")
+            raise Exception("Unable to retrieve player data, possibly invalid ID or issues with ETF2L API")
             return None
         
     def __get_match_history(self):
@@ -162,9 +163,11 @@ class Player:
                 possibleLogs = [log for log in self.mapLogInfo[officialMap] if log['date'] - matches[matchID]['time'] > 0]
                 
                 for logInfo in possibleLogs: 
-                    if 0 < logInfo['date'] - matches[matchID]['time'] < 86400:
-                        officialLogIDs[matchID].append(logInfo['id'])       
+                    if -86400 < logInfo['date'] - matches[matchID]['time'] < 172800:
+                        officialLogIDs[matchID].append(logInfo['id'])  
                         
+                if len(officialLogIDs[matchID]) == 0:
+                    print("No logs found for match ID: " + str(matchID))
         #Download logs for officials
         for match in officialLogIDs.keys():
             officialFullLogs[match] = []
@@ -252,7 +255,7 @@ class Player:
             playerImpactScore.append(gameImpact(self,matchLogs[matchID]))
            
         #This is just dpm at the moment
-        playerImpactScore = normalize_rows(np.array(playerImpactScore)) * 100
+        playerImpactScore = normalize_rows(np.array(playerImpactScore)) * 300
         
         #Mark where matches had no logs with X marker
         # playerImpactMarkers = np.copy(playerImpactScore)
@@ -290,11 +293,11 @@ def get_full_log(logID):
     
     tries = 1
     response = requests.get(url)
-    while response.status_code != 200 and tries < 3:
-        print("Retrying log download, logID: " + str(logID))
+    while response.status_code != 200 and tries <= 3:
+        #print("Retrying log download, logID: " + str(logID))
         response = requests.get(url)
         if response.status_code != 200:
-            time.sleep(0.1)
+            time.sleep(0.1*tries)
             
         tries += 1
 
