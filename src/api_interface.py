@@ -2,7 +2,7 @@
 """
 Created on Sat Aug 22 11:23:11 2020
 
-Interacts with ETF2L and logs.tf APIs to get player data and store it in object
+Interacts with ETF2L and logs.tf APIs to get player data and store it in Player object
 
 @author: Alex Hodgson
 """
@@ -10,7 +10,7 @@ Interacts with ETF2L and logs.tf APIs to get player data and store it in object
 import json
 import requests
 import matplotlib.pyplot as plt
-#import pandas as pd
+import pandas as pd
 import numpy as np
 import matplotlib.dates
 from datetime import datetime
@@ -62,7 +62,20 @@ class Player:
     
     
     def __get_player_info(self):
-        '''Returns general info about a player'''
+        '''
+        Returns general info about a player
+
+        Raises
+        ------
+        Exception
+            Raised if the data for given id cannot be found on etf2l.
+
+        Returns
+        -------
+        dict
+            General player information, read etf2l docs for more info.
+
+        '''
         
         idAsString = str(self.playerID)
         url = etf2l_url_base + "player/" + idAsString + dataFormat
@@ -78,8 +91,13 @@ class Player:
         
     def __get_match_history(self):
         '''
-        Returns all matches a player has been in
-        Dictionary with match ids as keys
+        Returns all etf2l matches a player has been in
+
+        Returns
+        -------
+        matches : dict
+            Etf2l match info with match ids as keys.
+
         '''
         
         matches = {}
@@ -114,7 +132,15 @@ class Player:
     
     
     def __get_transfer_history(self):
-        '''Returns the last 100 transfers of a player (effectively all their transfers)'''
+        '''
+        Gets a player's transfer history from etf2l
+
+        Returns
+        -------
+        dict
+            Last 100 transfers of a player (effectively all their transfers).
+
+        '''
         
         idAsString = str(self.playerID)
         url = etf2l_url_base + "player/" + idAsString + "/transfers"+ dataFormat + "?since=0&per_page=100"
@@ -128,14 +154,19 @@ class Player:
         
     def find_official_logs(self,matches):
         '''
-        matches : dict
-        Match data with match id as key
-        
-        Returns logs.tf files for a player's officials
-        May get warm up games as well, but that's more good
+        Gets full logs for a player's officials, may get warm up games as well, but that's more good
         data so I'm cool with that
-        
-        Returns logs in a dictionary with match id as key
+
+        Parameters
+        ----------
+        matches : dict
+            Etf2l match info with match ids as keys.
+
+        Returns
+        -------
+        officialFullLogs : dict
+            Full logs of official matches, with match ids as keys
+
         '''
         
         officialLogIDs = {}
@@ -188,7 +219,20 @@ class Player:
         
         
     def get_logs_info(self, gameMap="All_Maps"):
-        '''Gets info on all logs for a player, can filter by map'''
+        '''
+        Gets info on all logs for a player, can filter by map
+
+        Parameters
+        ----------
+        gameMap : String, optional
+            The map to look for logs on. The default is "All_Maps".
+
+        Returns
+        -------
+        allLogInfo : list
+            logs.tf ids for logs of possible interest
+
+        '''
         
         logsDownloaded = 0
         logsPerDownload = 10000 #How many logs per request
@@ -228,8 +272,12 @@ class Player:
     def get_6s_matches(self):
         '''
         Selects matches played as part of a 6v6 season
-        
-        Takes and returns a dict of matches with match ids as keys
+
+        Returns
+        -------
+        matches : dict
+            Matches played in a 6v6 season, match ids as keys.
+
         '''
         
         matches = {}
@@ -240,10 +288,21 @@ class Player:
 
         return matches
    
-    def plot_div_progress(self):
+    def plot_div_progress(self, plot = True):
         '''
         Plot player progress, from div 6 to prem
-        Might move this outside of class
+        Either plots the graph or returns it's data'
+
+        Parameters
+        ----------
+        plot : Bool, optional
+            If the function should plot the graph itself in a new window.
+            The default is True.
+
+        Returns
+        -------
+        ax : plt plot
+
         '''
         
         #Get score to use as size of plot point
@@ -251,42 +310,53 @@ class Player:
         for matchID in self.tierHistory[:,0]:
             #find_official_logs requires a dictionary, so can pass dict of length 1
             matchLogs = self.find_official_logs({matchID : self.playerMatches[matchID]})
-            #print(matchLogs)
             playerImpactScore.append(gameImpact(self,matchLogs[matchID]))
            
-        #This is just dpm at the moment
+        #This is just (dpm/ heals%)^2 at the moment
+        #Normalise for sensible marker sizes
         playerImpactScore = normalize_rows(np.array(playerImpactScore)) * 300
-        
-        #Mark where matches had no logs with X marker
-        # playerImpactMarkers = np.copy(playerImpactScore)
-        # playerImpactMarkers = np.where(playerImpactMarkers == 0, "X", playerImpactMarkers)
-        # playerImpactMarkers = np.where(playerImpactMarkers != "X", "o", playerImpactMarkers)
-        
         
         #Give size to markers for matches without logs
         avgImpact = np.mean(playerImpactScore)
-        #playerImpactScore = np.where(playerImpactScore==0, avgImpact, playerImpactScore)
-        
+
         #Convert from unix time to matplotlib date
         dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory[:,2]])
         
-        plt.title(self.playerName + " ETF2L Division Progress")
-        plt.xlabel = "Date"
-        #plt.plot_date(dates,self.tierHistory[:,1], ms=3, alpha=0.6)
-        plt.scatter(dates[playerImpactScore > 0],self.tierHistory[:,1][playerImpactScore > 0], s=playerImpactScore[playerImpactScore > 0], alpha = 0.6, marker='o')
-        plt.scatter(dates[playerImpactScore == 0 ],self.tierHistory[:,1][playerImpactScore == 0], s=avgImpact/2, alpha = 0.6, marker='x',c="Red")
-        ax = plt.gca()
-        ax.set_xlabel("Match Date")
-        ax.set_ylabel("Tier")
-        ax.set_ylim([6.2,-0.2])
-        
-        plt.show()
-        
-    
+        #Either plot the graph or return it to be handled higher up
+        if plot:
+            #plot circles for matches with stats, a cross if no data found
+            fig = plt.figure()
+            ax = fig.add_axes([0,0,1,1])
+            ax.scatter(dates[playerImpactScore > 0],self.tierHistory[:,1][playerImpactScore > 0], s=playerImpactScore[playerImpactScore > 0], alpha = 0.6, marker='o')
+            ax.scatter(dates[playerImpactScore == 0 ],self.tierHistory[:,1][playerImpactScore == 0], s=avgImpact/2, alpha = 0.6, marker='x',c="Red")
+            #ax = plt.gca()
+            ax.xaxis.set_major_formatter( matplotlib.dates.DateFormatter('%Y-%m-%d'))
+            ax.set_title(self.playerName + " ETF2L Division Progress")
+            ax.set_xlabel("Match Date")
+            ax.set_ylabel("Tier")
+            ax.set_ylim([6.2,-0.2])
+            plt.show()
+        else:
+            
+            matchData = pd.DataFrame({'time' : dates, 'div' : self.tierHistory[:,1], 'impact' : playerImpactScore})
+            return matchData
         
     
 def get_full_log(logID):
-    '''Gets a full game log from logs.tf'''
+    '''
+    Gets a full game log from logs.tf
+
+    Parameters
+    ----------
+    logID : int
+        id of logs.tf log
+
+    Returns
+    -------
+    dict
+        The full log
+
+    '''
     
     #try 3 times to get log from server
     url = full_log_url_base + str(logID)

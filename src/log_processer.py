@@ -10,7 +10,7 @@ For calculating performance ratings from logs
 #from api_interface import Player
 from tf2_classes import GameClass, GameTeam
 from statistics import mean, mode
-import math
+#import math
 
 
 def mainClass(steamID, log):

@@ -2,6 +2,8 @@
 """
 Created on Sun Aug 30 14:15:20 2020
 
+Class to enumerate tf2 classes and teams
+
 @author: Alex
 """
 
