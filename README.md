@@ -6,9 +6,11 @@ Enter ETF2L id and run to see their match history sorted by division, marker siz
 Cross marker means no log info could be found for that match
 
 The ETF2L user id can be found on a player's page url
+
 ![ETF2L user id](/media/etf2l_id.jpg)
 
 The progress graph should appear like this once the data is downloaded and processed
+
 ![The progress graph](/media/progress_graph.jpg)
 
 Coming soon™
