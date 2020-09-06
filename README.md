@@ -1,7 +1,7 @@
 # tf2-stats
 Pulling tf2 related stats for predictive analysis
 
-Run ETF2L_Stats for gui to draw graph of player progress through http://etf2l.org divisions
+Run ETF2L_Stats for gui to draw an interactive graph of player progress through http://etf2l.org divisions
 Enter ETF2L id and run to see their match history sorted by division, marker size is dependent on the player's performance in that match (see log_processer.py)
 Cross marker means no log info could be found for that match
 
