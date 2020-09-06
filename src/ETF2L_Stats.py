@@ -10,8 +10,8 @@ from api_interface import Player
 
 loadedPlayers = {}
 
-class MyFrame(wx.Frame):    
-    '''Window for the program'''
+class MyFrame(wx.Frame):
+    """Window for the program"""
     
     def __init__(self):
         super().__init__(parent=None, title='ETF2L Stat Tracker')
@@ -26,8 +26,8 @@ class MyFrame(wx.Frame):
         my_btn.Bind(wx.EVT_BUTTON, self.on_press)
         
         my_sizer.Add(my_btn, 0, wx.ALL | wx.CENTER, 5)     
-        my_sizer.Add(self.plotCanvas, 0, wx.ALL | wx.EXPAND, 5)
-        panel.SetSizer(my_sizer)        
+        my_sizer.Add(self.plotCanvas, 1, wx.ALL | wx.EXPAND, 5)
+        panel.SetSizer(my_sizer)
         self.Show()
 
     def on_press(self, event):
@@ -57,8 +57,8 @@ class CanvasPanel(wx.Panel):
         
         #Place on window
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.canvas, 0, wx.ALL | wx.EXPAND, 5)
-        self.sizer.Add(self.chart_toolbar, 0, wx.ALL | wx.EXPAND, 5)
+        self.sizer.Add(self.canvas, 1, wx.ALL | wx.EXPAND, 5)
+        self.sizer.Add(self.chart_toolbar, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(self.sizer)
         self.Fit()
 
@@ -95,4 +95,5 @@ class CanvasPanel(wx.Panel):
 if __name__ == '__main__':
     app = wx.App()
     frame = MyFrame()
+    frame.Fit()
     app.MainLoop()

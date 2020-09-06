@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['src\\ETF2L_Stats.py'],
+a = Analysis(['\\src\\ETF2L_Stats.py'],
              pathex=['C:\\Users\\Alex\\Documents\\GitHub\\tf2-stats'],
              binaries=[],
              datas=[],

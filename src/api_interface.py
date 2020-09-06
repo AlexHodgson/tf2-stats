@@ -7,16 +7,16 @@ Interacts with ETF2L and logs.tf APIs to get player data and store it in Player 
 @author: Alex Hodgson
 """
 
-import json
-import requests
+from json import loads
+from requests import get
 import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
+from  pandas import DataFrame
+from numpy import array, mean, transpose
 import matplotlib.dates
 from datetime import datetime
 #import warnings
 #import threading
-import time
+from time import sleep
 
 from log_processer import gameImpact
 
@@ -45,7 +45,7 @@ class Player:
         self.playerInfo = self.__get_player_info()
         self.playerMatches = self.__get_match_history()
         self.transferHistory = self.__get_transfer_history()
-        self.tierHistory = np.transpose(np.array([[ self.playerMatches[match]['id'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"],[ self.playerMatches[match]['division']['tier'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"], [self.playerMatches[match]['time']for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"]]))
+        self.tierHistory = transpose(array([[ self.playerMatches[match]['id'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"],[ self.playerMatches[match]['division']['tier'] for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"], [self.playerMatches[match]['time']for match in self.playerMatches.keys() if self.playerMatches[match]['competition']['category'] == "6v6 Season"]]))
         
         #ETF2L Name
         self.playerName = self.playerInfo['name']
@@ -80,10 +80,10 @@ class Player:
         idAsString = str(self.playerID)
         url = etf2l_url_base + "player/" + idAsString + dataFormat
         
-        response = requests.get(url)
+        response = get(url)
         
         if response.status_code == 200:
-            return json.loads(response.content.decode('utf-8'))['player']
+            return loads(response.content.decode('utf-8'))['player']
         else:
             #warnings.warn("Unable to retrieve player data, possibly invalid ID or issues with ETF2L API")
             raise Exception("Unable to retrieve player data, possibly invalid ID or issues with ETF2L API")
@@ -110,14 +110,14 @@ class Player:
         #Keep going until there aren't any more pages
         while nextPage:
         
-            response = requests.get(url)
+            response = get(url)
             
             #Something bad happened
             if response.status_code != 200:
                 return None
             
             #Only add if match has a time
-            jsonResponse = json.loads(response.content.decode('utf-8'))
+            jsonResponse = loads(response.content.decode('utf-8'))
             for match in jsonResponse['results']:
                 if match['time'] is not None:
                     matches[match['id']] = match
@@ -145,10 +145,10 @@ class Player:
         idAsString = str(self.playerID)
         url = etf2l_url_base + "player/" + idAsString + "/transfers"+ dataFormat + "?since=0&per_page=100"
         
-        response = requests.get(url)
+        response = get(url)
         
         if response.status_code == 200:
-            return json.loads(response.content.decode('utf-8'))
+            return loads(response.content.decode('utf-8'))
         else:
             return None
         
@@ -251,12 +251,12 @@ class Player:
                 url = logs_url_base + "?limit=" + str(logsPerDownload) + "&player=" + self.steamID64 + "&map=" + gameMap + "&offset=" + str(logsDownloaded)
    
             
-            response = requests.get(url)
+            response = get(url)
             #error somewhere
             if response.status_code != 200:
                 return None
             
-            logsJson = json.loads(response.content.decode('utf-8'))
+            logsJson = loads(response.content.decode('utf-8'))
             
             allLogInfo.extend(logsJson['logs'])
             
@@ -314,10 +314,10 @@ class Player:
            
         #This is just (dpm/ heals%)^2 at the moment
         #Normalise for sensible marker sizes
-        playerImpactScore = normalize_rows(np.array(playerImpactScore)) * 300
+        playerImpactScore = normalize_rows(array(playerImpactScore)) * 300
         
         #Give size to markers for matches without logs
-        avgImpact = np.mean(playerImpactScore)
+        avgImpact = mean(playerImpactScore)
 
         #Convert from unix time to matplotlib date
         dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory[:,2]])
@@ -338,7 +338,7 @@ class Player:
             plt.show()
         else:
             
-            matchData = pd.DataFrame({'time' : dates, 'div' : self.tierHistory[:,1], 'impact' : playerImpactScore})
+            matchData = DataFrame({'time' : dates, 'div' : self.tierHistory[:,1], 'impact' : playerImpactScore})
             return matchData
         
     
@@ -362,25 +362,25 @@ def get_full_log(logID):
     url = full_log_url_base + str(logID)
     
     tries = 1
-    response = requests.get(url)
+    response = get(url)
     while response.status_code != 200 and tries <= 3:
         #print("Retrying log download, logID: " + str(logID))
-        response = requests.get(url)
+        response = get(url)
         if response.status_code != 200:
-            time.sleep(0.1*tries)
+            sleep(0.1*tries)
             
         tries += 1
 
     #Return log if found, error message if not
     if response.status_code == 200:
-        return json.loads(response.content.decode('utf-8'))
+        return loads(response.content.decode('utf-8'))
     else:
         print("Log not found, logID: " + str(logID))
         return None
      
-def normalize_rows(x: np.ndarray):
+def normalize_rows(x):
 
-    return x/np.mean(x)  
+    return x/mean(x)  
 
 ##Some test cases
 #testPlayer = Player(65834)
