@@ -1,1 +1,3 @@
 src/venv/
+.idea/
+build/
