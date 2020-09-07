@@ -1,3 +1,5 @@
 src/venv/
+venv/
 .idea/
 build/
+src/sql_info.py
