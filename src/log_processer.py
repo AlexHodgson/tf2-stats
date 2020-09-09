@@ -188,9 +188,6 @@ def logToDataFrame(player, matchID, fullLog):
     # Generate a hash so local data can be compared with server data
     match_stats['hash'] = match_stats.apply(lambda x: hash(tuple(x)), axis = 1)
 
-    print(match_stats)
-
-    raise Exception("fin")
     return match_stats
 
 
