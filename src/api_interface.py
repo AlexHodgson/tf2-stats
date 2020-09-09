@@ -185,20 +185,24 @@ class Player:
             officialMaps = matches[matchID]['maps']
             for officialMap in officialMaps:
                 # Pull from logs.tf if we don't already have data
+                # Sometimes the map name on logs is upper case so check that as well
                 if officialMap not in self.mapLogInfo.keys():
                     self.mapLogInfo[officialMap] = self.get_logs_info(officialMap)
+                    upper_case_logs = self.get_logs_info(officialMap.upper())
+                    if upper_case_logs and self.mapLogInfo[officialMap]:
+                        self.mapLogInfo[officialMap].extend(upper_case_logs)
 
                 # Skip if no logs are found
                 if not self.mapLogInfo[officialMap]:
                     continue
                 # Then check for logs uploaded within 24 hours after game
                 # Could use numpy arrays to find min value?
-                # This is inefficient
+                # TODO This is inefficient
                 possibleLogs = [log for log in self.mapLogInfo[officialMap] if
                                 log['date'] - matches[matchID]['time'] > 0]
 
                 for logInfo in possibleLogs:
-                    if -86400 < logInfo['date'] - matches[matchID]['time'] < 172800:
+                    if 86400 > logInfo['date'] - matches[matchID]['time']:
                         officialLogIDs[matchID].append(logInfo['id'])
 
                 if len(officialLogIDs[matchID]) == 0:
