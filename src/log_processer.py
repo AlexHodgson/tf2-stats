@@ -69,7 +69,7 @@ def gameImpact(player, fullLog, calculateScore = True):
     ----------
     player : Player object
         player object for the gamer in question
-    fullLog : dict
+    fullLog : list
         All full log files for an official match
     calculateScore : bool
         If the function returns the performance score(True)
@@ -92,7 +92,8 @@ def gameImpact(player, fullLog, calculateScore = True):
     #Point caps
     #Percentage of heals recieved
     for log in fullLog:
-        
+
+
         #Older logs use steamID3
         if steamID not in log['players'].keys():
             steamID = player.steamID3

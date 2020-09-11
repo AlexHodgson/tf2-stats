@@ -17,6 +17,8 @@ from datetime import datetime
 # import warnings
 # import threading
 from time import sleep
+import time
+import dicts_bisect
 
 from log_processer import gameImpact, logToDataFrame
 from sql_interface import write_player_info_to_db
@@ -28,6 +30,32 @@ full_log_url_base = "http://logs.tf/json/"
 # etf2l docs can be found by following api url
 etf2l_url_base = "https://api.etf2l.org/"
 dataFormat = ".json"
+
+class Log:
+    """
+    TODO Fill this out to tidy up log data storage
+    """
+
+    def __init__(self, log_id):
+
+        #logs.tf id
+        self.logID = log_id
+        self.log : dict
+
+class Match:
+    """
+    TODO Fill this out to tidy up match data storage
+    """
+
+    def __init__(self, match_id):
+
+        # ETF2L match ID
+        self.matchID = match_id
+        # List of playerIDs who were in this match
+        self.players = []
+        # List of logs.tf ids for this match
+        self.logIDs = []
+
 
 
 class Player:
@@ -61,6 +89,10 @@ class Player:
         self.mapLogInfo = {}
         # Log files already downloaded
         self.downloadedLogs = {}
+        # Info on all logs is pretty small so get the whole lot
+        # Reverse to be in ascending time order
+        self.allLogs = self.get_logs_info()
+        self.allLogs.reverse()
 
         print("Player data downloaded for: " + self.playerName)
 
@@ -155,77 +187,63 @@ class Player:
         else:
             return None
 
-    def find_official_logs(self, matches):
-        '''
-        Gets full logs for a player's officials, may get warm up games as well, but that's more good
-        data so I'm cool with that
+    def find_official_logs(self, matches :dict):
+        """
+        Finds logs.tf ids for each etf2l match passed to it
+        Uses binary sort to speed up process now a player object holds info on all their logs
 
-        Parameters
-        ----------
-        matches : dict
-            Etf2l match info with match ids as keys.
+        :param matches: dict
+        dict of ETF2L match info with match ids as keys
 
-        Returns
-        -------
-        officialFullLogs : dict
-            Full logs of official matches, with match ids as keys
+        :return: dict
+        dict with match ids as keys, containing list of logs.tf ids
+        for the logs for that match
+        """
 
-        '''
+        official_match_logs = {}
 
-        officialLogIDs = {}
-        officialFullLogs = {}
+        for match_id in matches.keys():
 
-        # Get info on logs played on the same map as the official
-        for matchID in matches.keys():
-            # matchID = match['id']
-            officialLogIDs[matchID] = []
-            # Skip if no map or time data
-            if 'maps' not in matches[matchID].keys() or 'time' not in matches[matchID].keys():
+            # Skip if no time info
+            if 'time' not in matches[match_id].keys():
                 continue
-            officialMaps = matches[matchID]['maps']
-            for officialMap in officialMaps:
-                # Pull from logs.tf if we don't already have data
-                # Sometimes the map name on logs is upper case so check that as well
-                if officialMap not in self.mapLogInfo.keys():
-                    self.mapLogInfo[officialMap] = self.get_logs_info(officialMap)
-                    upper_case_logs = self.get_logs_info(officialMap.upper())
-                    if upper_case_logs and self.mapLogInfo[officialMap]:
-                        self.mapLogInfo[officialMap].extend(upper_case_logs)
 
-                # Skip if no logs are found
-                if not self.mapLogInfo[officialMap]:
-                    continue
-                # Then check for logs uploaded within 24 hours after game
-                # Could use numpy arrays to find min value?
-                # TODO This is inefficient
-                possibleLogs = [log for log in self.mapLogInfo[officialMap] if
-                                log['date'] - matches[matchID]['time'] > 0]
+            if 'maps' in matches[match_id].keys():
+                match_maps = matches[match_id]['maps']
+            else:
+                match_maps = ['variable']
 
-                for logInfo in possibleLogs:
-                    if 86400 > logInfo['date'] - matches[matchID]['time']:
-                        officialLogIDs[matchID].append(logInfo['id'])
+            match_time = matches[match_id]['time']
+            official_match_logs[match_id] = []
 
-                if len(officialLogIDs[matchID]) == 0:
-                    print("No logs found for match ID: " + str(matchID))
-        # Download logs for officials
-        for match in officialLogIDs.keys():
-            officialFullLogs[match] = []
-            for logID in officialLogIDs[match]:
 
-                # Check if we already have the log file
-                if logID in self.downloadedLogs.keys():
-                    fullLog = self.downloadedLogs[logID]
-                else:
-                    fullLog = get_full_log(logID)
+            # Find logs uploaded up to 8 hours after a match start
+            # Binary search to find first log then iterate over next few logs
+            match_logs = self.allLogs[dicts_bisect.bisect_dicts_left(self.allLogs, match_time,'date')
+                                      :dicts_bisect.bisect_dicts_left(self.allLogs, match_time + 28800,'date')]
 
-                # Could add a warning value if log is missing
-                if fullLog:
-                    self.downloadedLogs[logID] = fullLog
-                    officialFullLogs[match].append(fullLog)
 
-        return officialFullLogs
+            # i = 0
+            # match_logs = []
+            # base_id = dicts_bisect.bisect_dicts_left(self.allLogs, match_time,'date')
+            # while self.allLogs[base_id + i]['date'] < (self.allLogs[base_id]['date'] + 28800): # and i < 10, maybe set a hard limit on?
+            #     #if self.allLogs[base_id + i]['date'] - match_time < 0:
+            #     match_logs.append(self.allLogs[base_id + i])
+            #     i = i + 1
 
-    def get_logs_info(self, gameMap="All_Maps"):
+            # Playoffs don't specify maps, so just take all logs in that case
+            # Otherwise drop logs from the wrong maps, in case any were picked up
+            if 'variable' not in match_maps:
+                for match_log in match_logs:
+                    if match_log['map'].lower() not in match_maps:
+                        del match_log
+
+            for match_log in match_logs:
+                official_match_logs[match_id].append(match_log['id'])
+
+        return official_match_logs
+
+    def get_logs_info(self, gameMap ="All_Maps"):
         '''
         Gets info on all logs for a player, can filter by map
 
@@ -251,18 +269,19 @@ class Player:
 
             # Whether to filter by map or not
             if gameMap == "All_Maps":
-
-                url = logs_url_base + "?limit=" + str(logsPerDownload) + "&player=" + self.steamID64 + "&offset=" + str(
+                url = logs_url_base + "?limit=" + str(logsPerDownload) + "&player=" + str(self.steamID64) + "&offset=" + str(
                     logsDownloaded)
             else:
                 url = logs_url_base + "?limit=" + str(
-                    logsPerDownload) + "&player=" + self.steamID64 + "&map=" + gameMap + "&offset=" + str(
+                    logsPerDownload) + "&player=" + str(self.steamID64) + "&map=" + gameMap + "&offset=" + str(
                     logsDownloaded)
 
             response = get(url)
             # error somewhere
+            # TODO Handle this better
             if response.status_code != 200:
-                return None
+                print("Error getting log info from logs.tf")
+                continue
 
             logsJson = loads(response.content.decode('utf-8'))
 
@@ -273,7 +292,7 @@ class Player:
             if logsDownloaded >= logsJson['total']:
                 moreLogs = False
 
-        # print(allLogInfo)
+
         return allLogInfo
 
     def get_6s_matches(self):
@@ -314,11 +333,22 @@ class Player:
 
         # Get score to use as size of plot point
         playerImpactScore = []
+        start_time  = time.time()
         for matchID in self.tierHistory[:, 0]:
             # find_official_logs requires a dictionary, so can pass dict of length 1
-            matchLogs = self.find_official_logs({matchID: self.playerMatches[matchID]})
-            playerImpactScore.append(gameImpact(self, matchLogs[matchID]))
+            matchLogIDs = self.find_official_logs({matchID: self.playerMatches[matchID]})[matchID]
+            matchLogs = []
 
+            for log_id in matchLogIDs:
+
+                matchLogs.append(get_full_log(log_id))
+
+            self.find_official_logs({matchID: self.playerMatches[matchID]})
+            playerImpactScore.append(gameImpact(self, matchLogs))
+
+
+        end_time = time.time()
+        print("Time to find log ids: " + str(end_time- start_time))
         # This is just (dpm/ heals%)^2 at the moment
         # Normalise for sensible marker sizes
         playerImpactScore = normalize_rows(array(playerImpactScore)) * 300
@@ -352,7 +382,7 @@ class Player:
 
     def performance_history_to_df(self):
 
-        performance_history : DataFrame
+        performance_history: DataFrame
         # Add performance data to dataframe
         for matchID in self.tierHistory[:, 0]:
             # find_official_logs requires a dictionary, so can pass dict of length 1
@@ -399,11 +429,11 @@ def get_full_log(logID):
 
     tries = 1
     response = get(url)
-    while response.status_code != 200 and tries <= 3:
+    while response.status_code != 200 and tries <= 4:
         # print("Retrying log download, logID: " + str(logID))
         response = get(url)
         if response.status_code != 200:
-            sleep(0.1 * tries)
+            sleep(0.2 * tries)
 
         tries += 1
 
@@ -418,9 +448,12 @@ def get_full_log(logID):
 def normalize_rows(x):
     return x / mean(x)
 
+
+
 ##Some test cases
 #testPlayer = Player(97913)
 # print(testPlayer.playerName)
 # playerMatches = testPlayer.playerMatches
 #playerLogs = testPlayer.find_official_logs(testPlayer.get_6s_matches())
+#print(playerLogs)
 #testPlayer.upload_player_info()

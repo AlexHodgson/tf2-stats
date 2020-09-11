@@ -43,7 +43,6 @@ def write_player_info_to_db(playerInfo):
     except sql.errors.InterfaceError and TypeError:
         server_hash = None
         print("Cannot find hash in server table")
-    print(str(server_hash) + str(local_hash))
 
     # Add entry, unless the server is already up to date
     if server_hash != local_hash:
