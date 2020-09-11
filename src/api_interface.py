@@ -218,18 +218,9 @@ class Player:
 
 
             # Find logs uploaded up to 8 hours after a match start
-            # Binary search to find first log then iterate over next few logs
+            # Binary search through log dates
             match_logs = self.allLogs[dicts_bisect.bisect_dicts_left(self.allLogs, match_time,'date')
                                       :dicts_bisect.bisect_dicts_left(self.allLogs, match_time + 28800,'date')]
-
-
-            # i = 0
-            # match_logs = []
-            # base_id = dicts_bisect.bisect_dicts_left(self.allLogs, match_time,'date')
-            # while self.allLogs[base_id + i]['date'] < (self.allLogs[base_id]['date'] + 28800): # and i < 10, maybe set a hard limit on?
-            #     #if self.allLogs[base_id + i]['date'] - match_time < 0:
-            #     match_logs.append(self.allLogs[base_id + i])
-            #     i = i + 1
 
             # Playoffs don't specify maps, so just take all logs in that case
             # Otherwise drop logs from the wrong maps, in case any were picked up
