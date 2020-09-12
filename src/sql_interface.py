@@ -56,7 +56,7 @@ def write_player_info_to_db(playerInfo):
         db_cursor.execute(add_entry_sql, playerInfo)
         db_connection.commit()
 
-        print(f"Player record inserted/updated, ID: {db_cursor.lastrowid}")
+        print("Player record inserted/updated on SQL server")
 
     else:
         print("Server table already up to date")

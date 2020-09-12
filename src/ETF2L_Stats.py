@@ -6,6 +6,9 @@ matplotlib.use('WXAgg')
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 from matplotlib.figure import Figure
+#import mplcursors
+#import datetime
+#import numpy as np
 
 from api_interface import Player
 
@@ -84,16 +87,48 @@ class CanvasPanel(wx.Panel):
 
         # Plot the graph
         self.ax.clear()
-        self.ax.scatter(progressData['time'][progressData['impact'] > 0],
-                        progressData['div'][progressData['impact'] > 0],
-                        s=progressData['impact'][progressData['impact'] > 0], alpha=0.6, marker='o', c="Blue")
+
+        # Matches Lost
+        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "l")],
+                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "l")],
+                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "l")]
+                        , alpha=0.6, marker='o', c="Red")
+
+        # Matches drawn
+        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "d")],
+                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "d")],
+                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "d")]
+                        , alpha=0.6, marker='o', c="Blue")
+
+        # Matches merced
+        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "merc")],
+                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "merc")],
+                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "merc")]
+                        , alpha=0.6, marker='o', c="Brown")
+
+        # Matches won
+        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
+                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
+                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "v")]
+                        , alpha=0.6, marker='o', c="Green")
+
+        # Black cross for matches with no logs found
         self.ax.scatter(progressData['time'][progressData['impact'] == 0],
-                        progressData['div'][progressData['impact'] == 0], s=50, alpha=0.6, marker='x', c="Red")
-        self.ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
+                        progressData['div'][progressData['impact'] == 0], s=50, alpha=0.8, marker='x', c="Black")
+
+        # Formatting
+        self.ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%y'))
         self.ax.set_title(player.playerName + " ETF2L Division Progress")
         self.ax.set_xlabel("Match Date")
         self.ax.set_ylabel("Tier")
         self.ax.set_ylim([6.2, -0.2])
+
+        # Connect mouseover
+        # crs = mplcursors.cursor(self.ax, hover=False)
+        #
+        # crs.connect("add", lambda sel: sel.annotation.set_text(
+        #     'Match Date: {}, Tier: {}'.format(datetime.datetime.fromtimestamp(sel.target[0]).strftime("%d/%m/%Y"),
+        #                                       sel.target[1])))
 
         self.canvas.draw()
 

@@ -17,7 +17,7 @@ from datetime import datetime
 # import warnings
 # import threading
 from time import sleep
-import time
+# import time
 import dicts_bisect
 
 from log_processer import gameImpact, logToDataFrame
@@ -51,10 +51,22 @@ class Match:
 
         # ETF2L match ID
         self.matchID = match_id
+        # Full match data
+        self.matchData: dict
         # List of playerIDs who were in this match
         self.players = []
         # List of logs.tf ids for this match
         self.logIDs = []
+
+    def add_player(self, player_id: int):
+
+        if player_id not in self.players:
+            self.players.append(player_id)
+
+    def add_log(self, log_id: int):
+
+        if log_id not in self.logIDs:
+            self.logIDs.append(log_id)
 
 
 
@@ -72,13 +84,7 @@ class Player:
         self.playerInfo = self.__get_player_info()
         self.playerMatches = self.__get_match_history()
         self.transferHistory = self.__get_transfer_history()
-        self.tierHistory = transpose(array([[self.playerMatches[match]['id'] for match in self.playerMatches.keys() if
-                                             self.playerMatches[match]['competition']['category'] == "6v6 Season"],
-                                            [self.playerMatches[match]['division']['tier'] for match in
-                                             self.playerMatches.keys() if
-                                             self.playerMatches[match]['competition']['category'] == "6v6 Season"],
-                                            [self.playerMatches[match]['time'] for match in self.playerMatches.keys() if
-                                             self.playerMatches[match]['competition']['category'] == "6v6 Season"]]))
+        self.tierHistory = self.__get_tier_history()
 
         # ETF2L Name
         self.playerName = self.playerInfo['name']
@@ -98,6 +104,52 @@ class Player:
 
         #Add player info to SQL Server
         self.upload_player_info()
+
+    @staticmethod
+    def __get_player_match_results(matches: dict):
+        """
+        Finds if a player won/lost/drew/merced in a match
+        :param matches: dict
+        Dict of match info with match IDs as keys, match info must be from a player profile to indicate team (so private method)
+        :return:
+        Dict of results with match IDs as keys
+        """
+
+        results = {}
+
+        for match_id in matches.keys():
+
+            player_team: str
+            match = matches[match_id]
+            result: str
+
+            # What team was the player on
+            if match['clan1']['was_in_team']:
+                player_team = "1"
+            elif match['clan2']['was_in_team']:
+                player_team = "2"
+            else:
+                player_team = "merc"
+
+            # Which team won
+            if match["r1"] > match["r2"]:
+                result = "1"
+            elif match["r1"] < match["r2"]:
+                result = "2"
+            elif match["r1"] == match["r2"]:
+                result = "draw"
+
+            # Add result to dictionary
+            if result == player_team:
+                results[match_id] = "v"
+            elif result == "draw":
+                results[match_id] = "d"
+            elif player_team == "merc":
+                results[match_id] = "merc"
+            else:
+                results[match_id] = "l"
+
+        return results
 
     def __get_player_info(self):
         """
@@ -187,6 +239,32 @@ class Player:
         else:
             return None
 
+    def __get_tier_history(self):
+        """
+        Finds the tier that each of the player's 6v6 season officials took place in
+        Also gives the date and if the player won/ lost/ drew/ merced the match
+        :return: DataFrame
+        """
+
+        ids = [self.playerMatches[match]['id'] for match in self.playerMatches.keys() if
+               self.playerMatches[match]['competition']['category'] == "6v6 Season"]
+
+        tiers = [self.playerMatches[match]['division']['tier'] for match in self.playerMatches.keys() if
+                 self.playerMatches[match]['competition']['category'] == "6v6 Season"]
+
+        times = [self.playerMatches[match]['time'] for match in self.playerMatches.keys() if
+                 self.playerMatches[match]['competition']['category'] == "6v6 Season"]
+
+        # Check results of 6v6 season games
+        matches_dict = {match_id: self.playerMatches[match_id] for match_id in self.playerMatches if match_id in ids}
+        results_dict = self.__get_player_match_results(matches_dict)
+
+        # Move results from dict to list, same order as other lists
+        results = [results_dict[match_id] for match_id in ids]
+
+        # Return as an dataframe
+        return DataFrame({'id': ids, 'tier': tiers, 'time': times, 'result': results})
+
     def find_official_logs(self, matches :dict):
         """
         Finds logs.tf ids for each etf2l match passed to it
@@ -216,11 +294,10 @@ class Player:
             match_time = matches[match_id]['time']
             official_match_logs[match_id] = []
 
-
             # Find logs uploaded up to 8 hours after a match start
             # Binary search through log dates
-            match_logs = self.allLogs[dicts_bisect.bisect_dicts_left(self.allLogs, match_time,'date')
-                                      :dicts_bisect.bisect_dicts_left(self.allLogs, match_time + 28800,'date')]
+            match_logs = self.allLogs[dicts_bisect.bisect_dicts_left(self.allLogs, match_time, 'date')
+                                      :dicts_bisect.bisect_dicts_left(self.allLogs, match_time + 28800, 'date')]
 
             # Playoffs don't specify maps, so just take all logs in that case
             # Otherwise drop logs from the wrong maps, in case any were picked up
@@ -229,7 +306,10 @@ class Player:
                     if match_log['map'].lower() not in match_maps:
                         del match_log
 
+            #if len(match_logs) == 0:
+
             for match_log in match_logs:
+
                 official_match_logs[match_id].append(match_log['id'])
 
         return official_match_logs
@@ -306,7 +386,7 @@ class Player:
         return matches
 
     def plot_div_progress(self, plot=True):
-        '''
+        """
         Plot player progress, from div 6 to prem
         Either plots the graph or returns it's data'
 
@@ -320,12 +400,12 @@ class Player:
         -------
         ax : plt plot
 
-        '''
+        """
 
         # Get score to use as size of plot point
         playerImpactScore = []
-        start_time  = time.time()
-        for matchID in self.tierHistory[:, 0]:
+
+        for matchID in self.tierHistory['id']:
             # find_official_logs requires a dictionary, so can pass dict of length 1
             matchLogIDs = self.find_official_logs({matchID: self.playerMatches[matchID]})[matchID]
             matchLogs = []
@@ -337,9 +417,6 @@ class Player:
             self.find_official_logs({matchID: self.playerMatches[matchID]})
             playerImpactScore.append(gameImpact(self, matchLogs))
 
-
-        end_time = time.time()
-        print("Time to find log ids: " + str(end_time- start_time))
         # This is just (dpm/ heals%)^2 at the moment
         # Normalise for sensible marker sizes
         playerImpactScore = normalize_rows(array(playerImpactScore)) * 300
@@ -348,16 +425,16 @@ class Player:
         avgImpact = mean(playerImpactScore)
 
         # Convert from unix time to matplotlib date
-        dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory[:, 2]])
+        dates = matplotlib.dates.date2num([datetime.utcfromtimestamp(time) for time in self.tierHistory['time']])
 
         # Either plot the graph or return it to be handled higher up
         if plot:
             # plot circles for matches with stats, a cross if no data found
             fig = plt.figure()
             ax = fig.add_axes([0, 0, 1, 1])
-            ax.scatter(dates[playerImpactScore > 0], self.tierHistory[:, 1][playerImpactScore > 0],
+            ax.scatter(dates[playerImpactScore > 0], self.tierHistory['tier'][playerImpactScore > 0],
                        s=playerImpactScore[playerImpactScore > 0], alpha=0.6, marker='o')
-            ax.scatter(dates[playerImpactScore == 0], self.tierHistory[:, 1][playerImpactScore == 0], s=avgImpact / 2,
+            ax.scatter(dates[playerImpactScore == 0], self.tierHistory['tier'][playerImpactScore == 0], s=avgImpact / 2,
                        alpha=0.6, marker='x', c="Red")
             # ax = plt.gca()
             ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
@@ -368,14 +445,15 @@ class Player:
             plt.show()
         else:
 
-            matchData = DataFrame({'time': dates, 'div': self.tierHistory[:, 1], 'impact': playerImpactScore})
+            matchData = DataFrame({'time': array(dates), 'div': array(self.tierHistory['tier']), 'impact': playerImpactScore,
+                                   'result': array(self.tierHistory['result'])})
             return matchData
 
     def performance_history_to_df(self):
 
         performance_history: DataFrame
         # Add performance data to dataframe
-        for matchID in self.tierHistory[:, 0]:
+        for matchID in self.tierHistory['id']:
             # find_official_logs requires a dictionary, so can pass dict of length 1
             matchLogs = self.find_official_logs({matchID: self.playerMatches[matchID]})
             performance_history = performance_history.append(logToDataFrame(self, matchID, matchLogs[matchID]))
@@ -434,6 +512,7 @@ def get_full_log(logID):
     else:
         print("Log not found, logID: " + str(logID))
         return None
+
 
 
 def normalize_rows(x):
