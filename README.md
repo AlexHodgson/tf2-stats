@@ -12,6 +12,7 @@ The ETF2L user id can be found on a player's page url
 
 The progress graph should appear something like this once the data is downloaded and processed
 ![The progress graph](/media/progress_graph.jpg)
+
 Key:
 * Green marker: Won match
 * Red marker: Lost match
