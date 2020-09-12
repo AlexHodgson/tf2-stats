@@ -107,7 +107,7 @@ def gameImpact(player, fullLog, calculateScore = True):
         #     playerTeam = GameTeam.BLU
         
         # Get some provided stats, for some reason ka/d is a string
-        # TODO Make this a function for the repeatable retrievals
+        # TODO Make a function for the repeatable retrievals
         matchStats['mainClass'].append(mainClass(steamID, log))
         matchStats['dpm'].append(log['players'][steamID]['dapm'])
         matchStats['kad'].append(float(log['players'][steamID]['kapd']))

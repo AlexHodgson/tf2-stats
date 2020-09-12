@@ -88,29 +88,31 @@ class CanvasPanel(wx.Panel):
         # Plot the graph
         self.ax.clear()
 
+        # Matches won
+        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
+                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
+                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "v")]
+                        , alpha=0.3, marker='o', c="Green")
+
         # Matches Lost
         self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "l")],
                         progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "l")],
                         s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "l")]
-                        , alpha=0.6, marker='o', c="Red")
+                        , alpha=0.3, marker='o', c="Red")
 
         # Matches drawn
         self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "d")],
                         progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "d")],
                         s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "d")]
-                        , alpha=0.6, marker='o', c="Blue")
+                        , alpha=0.3, marker='o', c="Blue")
 
         # Matches merced
         self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "merc")],
                         progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "merc")],
                         s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "merc")]
-                        , alpha=0.6, marker='o', c="Brown")
+                        , alpha=0.3, marker='o', c="Brown")
 
-        # Matches won
-        self.ax.scatter(progressData['time'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
-                        progressData['div'][(progressData['impact'] > 0) & (progressData['result'] == "v")],
-                        s=progressData['impact'][(progressData['impact'] > 0) & (progressData['result'] == "v")]
-                        , alpha=0.6, marker='o', c="Green")
+
 
         # Black cross for matches with no logs found
         self.ax.scatter(progressData['time'][progressData['impact'] == 0],
