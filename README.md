@@ -16,7 +16,8 @@ The progress graph should appear something like this once the data is downloaded
 Key:
 * Green marker: Won match
 * Red marker: Lost match
-* Blue marker: Drew or merced in match
+* Blue marker: Drew match
+* Brown marker: Merced in match
 * Black cross: No log info found
 
 Coming soon™
