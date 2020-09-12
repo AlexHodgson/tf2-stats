@@ -10,9 +10,13 @@ The ETF2L user id can be found on a player's page url
 
 ![ETF2L user id](/media/etf2l_id.jpg)
 
-The progress graph should appear like this once the data is downloaded and processed
-
+The progress graph should appear something like this once the data is downloaded and processed
 ![The progress graph](/media/progress_graph.jpg)
+Key:
+* Green marker: Won match
+* Red marker: Lost match
+* Blue marker: Drew or merced in match
+* Black cross: No log info found
 
 Coming soon™
 * Threading so it doesn't freeze when downloading data, as downloading logs.tf data takes a long time
