@@ -3,3 +3,5 @@ venv/
 .idea/
 build/
 src/sql_info.py
+.vscode/
+__init__.py

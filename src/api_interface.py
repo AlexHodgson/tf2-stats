@@ -11,7 +11,7 @@ from json import loads
 from requests import get
 import matplotlib.pyplot as plt
 from pandas import DataFrame
-from numpy import array, mean, transpose
+from numpy import array, mean, transpose, int32
 import matplotlib.dates
 from datetime import datetime
 # import warnings
@@ -467,10 +467,7 @@ class Player:
         """
         # Add hash to check if data is different to server's version
         player_info_dict = {'ETF2L_ID': self.playerID, 'Name': self.playerName, 'Steam_ID': self.steamID, 'Join_Date': self.playerInfo['registered']}
-        player_info_dict['hash'] = hash(player_info_dict.values())
-
-        #player_info = DataFrame(player_info_dict, index = [0])
-        #print(player_info)
+        player_info_dict['hash'] = hash_dict(player_info_dict)
 
         write_player_info_to_db(player_info_dict)
 
@@ -517,6 +514,33 @@ def get_full_log(logID):
 
 def normalize_rows(x):
     return x / mean(x)
+
+
+def hash_dict(d: dict):
+    '''
+    Hashes a dictionary of strings, floats and ints
+    Doesn't need to be secure, just consistent
+
+    Returns an int up to 8 digits long
+    '''
+
+    #Start with seed of 1
+    hash_val = 1
+    for key in d.keys():
+
+        if type(d[key]) == str:
+            hash_val +=  int.from_bytes(d[key].encode('utf-8'), 'little')
+        elif type(d[key]) == int:
+            hash_val += d[key]
+        elif type(d[key]) == float:
+            hash_val += int(d[key])
+        else:
+            raise ValueError("hash_dict can only handle dicts containing int, float and str values")
+
+    hash_val = hash_val **(3)
+
+    #TODO Make a better way to truncate this so it fits in a 32 bit int
+    return int(str(hash_val)[:8])
 
 
 
