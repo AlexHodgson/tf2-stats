@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['src\\ETF2L_Stats.py'],
-             pathex=['C:\\Users\\Alex\\Documents\\GitHub\\tf2-stats'],
+             pathex=['A:\\Documents\\GitHub\\tf2-stats'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=False )
+          console=True )
