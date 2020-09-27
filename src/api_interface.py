@@ -463,7 +463,6 @@ class Player:
     def upload_player_info(self):
         """
         Send player data to sql_interface to attempt upload to sql server
-        TODO Find a new hash library for consistent hashes across each run
         """
         # Add hash to check if data is different to server's version
         player_info_dict = {'ETF2L_ID': self.playerID, 'Name': self.playerName, 'Steam_ID': self.steamID, 'Join_Date': self.playerInfo['registered']}
