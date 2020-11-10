@@ -464,7 +464,7 @@ class Player:
         """
         Send player data to sql_interface to attempt upload to sql server
         """
-        # Add hash to check if data is different to server's version
+        # Add hash/checksum to check if data is different to server's version
         player_info_dict = {'ETF2L_ID': self.playerID, 'Name': self.playerName, 'Steam_ID': self.steamID, 'Join_Date': self.playerInfo['registered']}
         player_info_dict['hash'] = hash_dict(player_info_dict)
 
@@ -538,8 +538,8 @@ def hash_dict(d: dict):
 
     hash_val = hash_val **(3)
 
-    #TODO Make a better way to truncate this so it fits in a 32 bit int
-    return int(str(hash_val)[:8])
+    # Truncate this so it fits in a 32 bit int that the database is expecting
+    return hash_val % (10**8)
 
 
 
