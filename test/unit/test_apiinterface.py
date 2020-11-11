@@ -1,5 +1,8 @@
 import sys
-sys.path.append('A:\Documents\GitHub\\tf2-stats\src')
+from os.path import dirname, abspath, join
+
+top_dir = dirname(dirname(dirname(abspath(__file__))))
+sys.path.append(top_dir + "\src")
 
 import unittest
 import api_interface as api # Code to be tested
@@ -18,7 +21,7 @@ class TestMathMethods(unittest.TestCase):
 
         test_array = np.random.randint(100, size=(50))
 
-        self.assertEqual(len(test_array), np.sum(api.normalize_rows(test_array)))
+        self.assertAlmostEqual(len(test_array), np.sum(api.normalize_rows(test_array)))
 
 if __name__ == '__main__':
     unittest.main()
